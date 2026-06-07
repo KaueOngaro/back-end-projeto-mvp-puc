@@ -1,4 +1,3 @@
---
 ## Como executar
 
 DETALHAR
