@@ -118,6 +118,9 @@ def add_venda():
         if vendedor is None:
             return resposta_erro(f'Vendedor com ID {vendedor_id} não encontrado.', 404)
 
+        # Cache de tecidos para evitar múltiplas queries do mesmo tecido
+        tecidos_cache = {}
+        
         # Validar todos os itens antes de processar
         for item in itens:
             tecido_id = item.get('tecido_id')
@@ -134,9 +137,14 @@ def add_venda():
             if metragem <= 0:
                 return resposta_erro('metragem_vendida deve ser maior que zero.', 400)
 
-            tecido = session.query(Tecido).filter_by(id=tecido_id).first()
-            if tecido is None:
-                return resposta_erro(f'Tecido com ID {tecido_id} não encontrado.', 404)
+            # Usar cache para evitar múltiplas queries
+            if tecido_id not in tecidos_cache:
+                tecido = session.query(Tecido).filter_by(id=tecido_id).first()
+                if tecido is None:
+                    return resposta_erro(f'Tecido com ID {tecido_id} não encontrado.', 404)
+                tecidos_cache[tecido_id] = tecido
+            else:
+                tecido = tecidos_cache[tecido_id]
 
             if metragem > tecido.quantidade_metros:
                 return resposta_erro(
@@ -154,7 +162,8 @@ def add_venda():
             tecido_id = item.get('tecido_id')
             metragem = float(item.get('metragem_vendida'))
 
-            tecido = session.query(Tecido).filter_by(id=tecido_id).first()
+            # Usar o tecido do cache (já carregado)
+            tecido = tecidos_cache[tecido_id]
             tecido.quantidade_metros -= metragem
 
             item_venda = ItemVenda(
