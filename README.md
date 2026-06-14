@@ -160,4 +160,3 @@ curl -X POST http://localhost:5000/venda \
 - Atualização automática de estoque após venda registrada
 - Validação de vendedor e tecido existentes
 - Validação de metragem positiva
->>>>>>> 55aacd3 (Atualiza lógica de integração com o frontend adicionando rotas para integração com o banco de dados de estoque e rotas de registrar pedidos e adiciona gitignore)
