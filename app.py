@@ -1,4 +1,5 @@
 from flask import Flask, request
+from flasgger import Flasgger
 from sqlalchemy.exc import IntegrityError
 
 from model import Session
@@ -10,6 +11,7 @@ from view.resposta_sucesso import resposta_sucesso
 from view.resposta_erro import resposta_erro
 
 app = Flask(__name__)
+swagger = Flasgger(app, title='API Loja de Tecidos', version='1.0.0')
 
 
 @app.after_request
@@ -54,6 +56,46 @@ def setup():
 
 @app.route('/venda', methods=['OPTIONS', 'POST'])
 def add_venda():
+    """
+    Registra uma nova venda com múltiplos itens.
+    ---
+    tags:
+      - Vendas
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - vendedor_id
+            - itens
+          properties:
+            vendedor_id:
+              type: integer
+              description: ID do vendedor
+            itens:
+              type: array
+              items:
+                type: object
+                required:
+                  - tecido_id
+                  - metragem_vendida
+                properties:
+                  tecido_id:
+                    type: integer
+                  metragem_vendida:
+                    type: number
+    responses:
+      201:
+        description: Venda registrada com sucesso
+      400:
+        description: Erro na validação dos dados
+      404:
+        description: Vendedor ou tecido não encontrado
+      500:
+        description: Erro interno do servidor
+    """
     if request.method == 'OPTIONS':
         return '', 204
 
@@ -137,6 +179,30 @@ def add_venda():
 
 @app.route('/relatorio', methods=['GET'])
 def get_vendas():
+    """
+    Retorna todas as vendas registradas com seus itens.
+    ---
+    tags:
+      - Vendas
+    responses:
+      200:
+        description: Lista de vendas com detalhes
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              vendedor_id:
+                type: integer
+              vendedor_nome:
+                type: string
+              data_venda:
+                type: string
+              itens:
+                type: array
+    """
     session = Session()
     try:
         vendas = session.query(Venda).order_by(Venda.data_venda.desc()).all()
@@ -147,6 +213,24 @@ def get_vendas():
 
 @app.route('/vendedores', methods=['GET'])
 def get_vendedores():
+    """
+    Retorna a lista de vendedores cadastrados.
+    ---
+    tags:
+      - Vendedores
+    responses:
+      200:
+        description: Lista de vendedores
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              nome:
+                type: string
+    """
     session = Session()
     try:
         vendedores = session.query(Vendedor).order_by(Vendedor.nome).all()
@@ -157,6 +241,26 @@ def get_vendedores():
 
 @app.route('/estoque', methods=['GET'])
 def get_estoque():
+    """
+    Retorna a lista de tecidos em estoque.
+    ---
+    tags:
+      - Estoque
+    responses:
+      200:
+        description: Lista de tecidos disponíveis
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              nome:
+                type: string
+              quantidade_metros:
+                type: number
+    """
     session = Session()
     try:
         tecidos = session.query(Tecido).order_by(Tecido.nome).all()
