@@ -11,7 +11,7 @@ from view.resposta_sucesso import resposta_sucesso
 from view.resposta_erro import resposta_erro
 
 app = Flask(__name__)
-swagger = Flasgger(app, title='API Loja de Tecidos', version='1.0.0')
+swagger = Flasgger(app)
 
 
 @app.after_request
