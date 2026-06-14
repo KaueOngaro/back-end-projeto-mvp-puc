@@ -21,81 +21,8 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
     return response
 
-
-def seed_initial_data():
-    session = Session()
-    try:
-        # Criar vendedores iniciais
-        if session.query(Vendedor).count() == 0:
-            vendedores = [
-                Vendedor(nome='João Silva'),
-                Vendedor(nome='Maria Santos'),
-            ]
-            session.add_all(vendedores)
-            session.commit()
-
-        # Criar tecidos iniciais
-        if session.query(Tecido).count() == 0:
-            tecidos = [
-                Tecido(nome='Algodão', quantidade_metros=100.0),
-                Tecido(nome='Poliéster', quantidade_metros=150.0),
-                Tecido(nome='Seda', quantidade_metros=50.0),
-            ]
-            session.add_all(tecidos)
-            session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
-
-
-@app.before_first_request
-def setup():
-    seed_initial_data()
-
-
 @app.route('/venda', methods=['OPTIONS', 'POST'])
 def add_venda():
-    """
-    Registra uma nova venda com múltiplos itens.
-    ---
-    tags:
-      - Vendas
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          required:
-            - vendedor_id
-            - itens
-          properties:
-            vendedor_id:
-              type: integer
-              description: ID do vendedor
-            itens:
-              type: array
-              items:
-                type: object
-                required:
-                  - tecido_id
-                  - metragem_vendida
-                properties:
-                  tecido_id:
-                    type: integer
-                  metragem_vendida:
-                    type: number
-    responses:
-      201:
-        description: Venda registrada com sucesso
-      400:
-        description: Erro na validação dos dados
-      404:
-        description: Vendedor ou tecido não encontrado
-      500:
-        description: Erro interno do servidor
-    """
     if request.method == 'OPTIONS':
         return '', 204
 
@@ -105,7 +32,7 @@ def add_venda():
 
     vendedor_id = payload.get('vendedor_id')
     itens = payload.get('itens')
-
+    
     if not vendedor_id:
         return resposta_erro('O campo "vendedor_id" é obrigatório.', 400)
 
@@ -118,10 +45,7 @@ def add_venda():
         if vendedor is None:
             return resposta_erro(f'Vendedor com ID {vendedor_id} não encontrado.', 404)
 
-        # Cache de tecidos para evitar múltiplas queries do mesmo tecido
-        tecidos_cache = {}
-        
-        # Validar todos os itens antes de processar
+        # 1. Validação básica de formato dos itens (Sem consultar estoque no Python)
         for item in itens:
             tecido_id = item.get('tecido_id')
             metragem = item.get('metragem_vendida')
@@ -137,34 +61,15 @@ def add_venda():
             if metragem <= 0:
                 return resposta_erro('metragem_vendida deve ser maior que zero.', 400)
 
-            # Usar cache para evitar múltiplas queries
-            if tecido_id not in tecidos_cache:
-                tecido = session.query(Tecido).filter_by(id=tecido_id).first()
-                if tecido is None:
-                    return resposta_erro(f'Tecido com ID {tecido_id} não encontrado.', 404)
-                tecidos_cache[tecido_id] = tecido
-            else:
-                tecido = tecidos_cache[tecido_id]
-
-            if metragem > tecido.quantidade_metros:
-                return resposta_erro(
-                    f'Metragem insuficiente para {tecido.nome}. Disponível: {tecido.quantidade_metros}m.',
-                    400
-                )
-
-        # Criar a venda
+        # 2. Criar o registro principal da venda
         venda = Venda(vendedor_id=vendedor_id)
         session.add(venda)
-        session.flush()  # Garante que a venda tem um ID
+        session.flush()  # Garante a geração do ID da venda
 
-        # Adicionar itens e atualizar estoque
+        # 3. Inserir os itens (A Trigger do banco vai disparar automaticamente a cada insert aqui)
         for item in itens:
             tecido_id = item.get('tecido_id')
             metragem = float(item.get('metragem_vendida'))
-
-            # Usar o tecido do cache (já carregado)
-            tecido = tecidos_cache[tecido_id]
-            tecido.quantidade_metros -= metragem
 
             item_venda = ItemVenda(
                 venda_id=venda.id,
@@ -173,14 +78,20 @@ def add_venda():
             )
             session.add(item_venda)
 
+        # Confirmar transação. Se a trigger do banco lançar um erro (ex: falta de estoque), 
+        # o SQLAlchemy vai direto para o bloco except abaixo e faz o rollback.
         session.commit()
         return resposta_sucesso(venda, 201)
 
-    except IntegrityError:
+    except IntegrityError as err:
         session.rollback()
+        print(f"ERRO DE INTEGRIDADE NO BANCO: {err}") # <-- ADICIONE ISSO
         return resposta_erro('Erro de integridade ao registrar a venda.', 500)
     except Exception as exc:
         session.rollback()
+        print(f"ERRO GENÉRICO NO PYTHON/BANCO: {exc}") # <-- ADICIONE ISSO
+        import traceback
+        traceback.print_exc()                           # <-- ADICIONE ISSO (Mostra a linha exata)
         return resposta_erro(str(exc), 500)
     finally:
         session.close()
