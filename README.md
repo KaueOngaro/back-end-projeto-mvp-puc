@@ -1,8 +1,5 @@
 # Backend MVC - Loja de Tecidos
 
-<<<<<<< HEAD
-TO DO
-=======
 API em Flask seguindo padrão MVC, com rotas para vendas, relatório e estoque de tecidos.
 
 ## Estrutura do projeto
