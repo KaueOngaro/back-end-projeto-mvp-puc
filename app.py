@@ -97,7 +97,6 @@ def add_venda():
         if vendedor is None:
             return resposta_erro(f'Vendedor com ID {vendedor_id} não encontrado.', 404)
 
-        # 1. Validação básica de formato dos itens (Sem consultar estoque no Python)
         for item in itens:
             tecido_id = item.get('tecido_id')
             metragem = item.get('metragem_vendida')
@@ -113,12 +112,10 @@ def add_venda():
             if metragem <= 0:
                 return resposta_erro('metragem_vendida deve ser maior que zero.', 400)
 
-        # 2. Criar o registro principal da venda
         venda = Venda(vendedor_id=vendedor_id)
         session.add(venda)
-        session.flush()  # Garante a geração do ID da venda
+        session.flush()
 
-        # 3. Inserir os itens (A Trigger do banco vai disparar automaticamente a cada insert aqui)
         for item in itens:
             tecido_id = item.get('tecido_id')
             metragem = float(item.get('metragem_vendida'))
@@ -130,20 +127,18 @@ def add_venda():
             )
             session.add(item_venda)
 
-        # Confirmar transação. Se a trigger do banco lançar um erro (ex: falta de estoque), 
-        # o SQLAlchemy vai direto para o bloco except abaixo e faz o rollback.
+        # a trigger do banco valida o estoque disponível a cada insert;
+        # se estourar, o IntegrityError abaixo cai no rollback
         session.commit()
         return resposta_sucesso(venda, 201)
 
     except IntegrityError as err:
         session.rollback()
-        print(f"ERRO DE INTEGRIDADE NO BANCO: {err}") # <-- ADICIONE ISSO
+        print(f"Erro de integridade no banco: {err}")
         return resposta_erro('Erro de integridade ao registrar a venda.', 500)
     except Exception as exc:
         session.rollback()
-        print(f"ERRO GENÉRICO NO PYTHON/BANCO: {exc}") # <-- ADICIONE ISSO
-        import traceback
-        traceback.print_exc()                           # <-- ADICIONE ISSO (Mostra a linha exata)
+        print(f"Erro ao registrar venda: {exc}")
         return resposta_erro(str(exc), 500)
     finally:
         session.close()
