@@ -117,19 +117,6 @@ Exemplo de resposta de sucesso:
 }
 ```
 
-## Comportamento inicial
-
-Ao iniciar a aplicação pela primeira vez, o sistema cria automaticamente:
-
-**Vendedores:**
-- João Silva
-- Maria Santos
-
-**Tecidos:**
-- Algodão (100m)
-- Poliéster (150m)
-- Seda (50m)
-
 ## Testando as rotas
 
 Use ferramentas como `curl`, Insomnia, Postman para testar:
