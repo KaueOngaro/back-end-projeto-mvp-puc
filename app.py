@@ -23,6 +23,58 @@ def add_cors_headers(response):
 
 @app.route('/venda', methods=['OPTIONS', 'POST'])
 def add_venda():
+    """
+    Registra uma venda com um ou mais itens e atualiza o estoque automaticamente.
+    ---
+    tags:
+      - Vendas
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - vendedor_id
+            - itens
+          properties:
+            vendedor_id:
+              type: integer
+              example: 1
+            itens:
+              type: array
+              items:
+                type: object
+                properties:
+                  tecido_id:
+                    type: integer
+                    example: 1
+                  metragem_vendida:
+                    type: number
+                    example: 5.0
+    responses:
+      201:
+        description: Venda registrada com sucesso
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            vendedor_id:
+              type: integer
+            vendedor_nome:
+              type: string
+            data_venda:
+              type: string
+            itens:
+              type: array
+      400:
+        description: Corpo da requisição inválido ou campos obrigatórios ausentes
+      404:
+        description: Vendedor informado não foi encontrado
+      500:
+        description: Erro de integridade ou erro interno ao registrar a venda
+    """
     if request.method == 'OPTIONS':
         return '', 204
 
